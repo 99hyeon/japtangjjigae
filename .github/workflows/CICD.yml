@@ -32,9 +32,6 @@ jobs:
           chmod +x ./gradlew
           ./gradlew clean build --no-daemon
 
-      - name: Set image tag
-        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
@@ -42,16 +39,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        run: |
-          docker build --platform linux/amd64 \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:latest \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:${{ env.SHA_SHORT }} \
-            .
+        run: docker build --platform linux/amd64 -t ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server .
 
       - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:${{ env.SHA_SHORT }}
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:latest
 
   deploy:
     needs: build
