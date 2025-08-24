@@ -1,0 +1,54 @@
+### OS 공통 ### > 이게 뭐야 어디있는거야
+.DS_Store
+Thumbs.db
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+application-secret.yml
+
+### Gradle / Java ###
+HELP.md
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+logs/
+*.log
+*.jfr
+hs_err_pid*
+replay_pid*.log
+# (Maven을 안 쓰지만 혹시 모를 target 생성 방지)
+target/
+
+### CRA(React + TS) - 프론트가 src/main/frontend 에 있을 때 ###
+src/main/frontend/node_modules/
+src/main/frontend/build/
+src/main/frontend/coverage/
+src/main/frontend/.eslintcache
+src/main/frontend/.tsbuildinfo
+# 환경변수: 로컬 .env는 무시, 샘플은 추적
+src/main/frontend/.env*
+!src/main/frontend/.env.example
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/

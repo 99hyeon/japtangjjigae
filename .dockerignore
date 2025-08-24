@@ -1,0 +1,9 @@
+frontend/**
+node_modules
+.git
+.gradle
+build/**          # 일단 build 전부 제외
+!build/libs/**    # 단, libs 폴더는 다시 포함
+!build/libs/*.jar # 그리고 jar 파일 포함
+**/*.log
+**/*.md
