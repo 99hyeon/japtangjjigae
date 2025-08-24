@@ -32,9 +32,6 @@ jobs:
           chmod +x ./gradlew
           ./gradlew clean build --no-daemon
 
-      - name: Set image tag
-        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
@@ -42,16 +39,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        run: |
-          docker build --platform linux/amd64 \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/live_server:${{ env.SHA_SHORT }} \
-            .
+        run: docker build --platform linux/amd64 -t ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server .
 
       - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/live_server:${{ env.SHA_SHORT }}
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:latest
 
   deploy:
     needs: build
@@ -59,10 +50,10 @@ jobs:
     steps:
       - name: Set target IP and decide blue/green
         run: |
-          STATUS=$(curl -o /dev/null -w "%{http_code}" "http://${{ secrets.LIVE_SERVER_IP }}/env")
+          STATUS=$(curl -o /dev/null -w "%{http_code}" "http://${{ secrets.JJIGAE_SERVER_IP }}/env")
           echo $STATUS
           if [ $STATUS = 200 ]; then
-            CURRENT_UPSTREAM=$(curl -s "http://${{ secrets.LIVE_SERVER_IP }}/env")
+            CURRENT_UPSTREAM=$(curl -s "http://${{ secrets.JJIGAE_SERVER_IP }}/env")
           else
             CURRENT_UPSTREAM=green
           fi
@@ -84,11 +75,11 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           username: ubuntu
-          host: ${{ secrets.LIVE_SERVER_IP }}
+          host: ${{ secrets.JJIGAE_SERVER_IP }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           script: |
-            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/jjigae_server:latest
             if command -v docker-compose >/dev/null 2>&1; then
               sudo docker-compose -f docker-compose-${{ env.TARGET_UPSTREAM }}.yml up -d
             else
@@ -98,7 +89,7 @@ jobs:
       - name: Health check new target
         uses: jtalk/url-health-check-action@v3
         with:
-          url: http://${{ secrets.LIVE_SERVER_IP }}:${{ env.STOPPED_PORT }}/env
+          url: http://${{ secrets.JJIGAE_SERVER_IP}}:${{ env.STOPPED_PORT }}/env
           max-attempts: 6
           retry-delay: 10s
 
@@ -106,7 +97,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           username: ubuntu
-          host: ${{ secrets.LIVE_SERVER_IP }}
+          host: ${{ secrets.JJIGAE_SERVER_IP}}
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           script: |
@@ -116,7 +107,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           username: ubuntu
-          host: ${{ secrets.LIVE_SERVER_IP }}
+          host: ${{ secrets.JJIGAE_SERVER_IP}}
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
           script: |
