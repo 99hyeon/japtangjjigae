@@ -1,0 +1,128 @@
+name: CICD
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - 'frontend/**'
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - 'frontend/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cicd-main
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build --no-daemon
+
+      - name: Set image tag
+        run: echo "SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/live_server:${{ env.SHA_SHORT }} \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/live_server:${{ env.SHA_SHORT }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set target IP and decide blue/green
+        run: |
+          STATUS=$(curl -o /dev/null -w "%{http_code}" "http://${{ secrets.LIVE_SERVER_IP }}/env")
+          echo $STATUS
+          if [ $STATUS = 200 ]; then
+            CURRENT_UPSTREAM=$(curl -s "http://${{ secrets.LIVE_SERVER_IP }}/env")
+          else
+            CURRENT_UPSTREAM=green
+          fi
+          echo CURRENT_UPSTREAM=$CURRENT_UPSTREAM >> $GITHUB_ENV
+          if [ $CURRENT_UPSTREAM = blue ]; then
+            echo "CURRENT_PORT=8080" >> $GITHUB_ENV
+            echo "STOPPED_PORT=8081" >> $GITHUB_ENV
+            echo "TARGET_UPSTREAM=green" >> $GITHUB_ENV
+          elif [ $CURRENT_UPSTREAM = green ]; then
+            echo "CURRENT_PORT=8081" >> $GITHUB_ENV
+            echo "STOPPED_PORT=8080" >> $GITHUB_ENV
+            echo "TARGET_UPSTREAM=blue" >> $GITHUB_ENV
+          else
+            echo "error"
+            exit 1
+          fi
+
+      - name: Deploy new app on stopped upstream
+        uses: appleboy/ssh-action@master
+        with:
+          username: ubuntu
+          host: ${{ secrets.LIVE_SERVER_IP }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/live_server:latest
+            if command -v docker-compose >/dev/null 2>&1; then
+              sudo docker-compose -f docker-compose-${{ env.TARGET_UPSTREAM }}.yml up -d
+            else
+              sudo docker compose -f docker-compose-${{ env.TARGET_UPSTREAM }}.yml up -d
+            fi
+
+      - name: Health check new target
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: http://${{ secrets.LIVE_SERVER_IP }}:${{ env.STOPPED_PORT }}/env
+          max-attempts: 6
+          retry-delay: 10s
+
+      - name: Switch Nginx upstream
+        uses: appleboy/ssh-action@master
+        with:
+          username: ubuntu
+          host: ${{ secrets.LIVE_SERVER_IP }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            sudo docker exec -i nginxserver sh -lc 'echo "set \$service_url ${{ env.TARGET_UPSTREAM }};" > /etc/nginx/conf.d/service-env.inc && nginx -s reload'
+
+      - name: Stop old app
+        uses: appleboy/ssh-action@master
+        with:
+          username: ubuntu
+          host: ${{ secrets.LIVE_SERVER_IP }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            sudo docker stop ${{ env.CURRENT_UPSTREAM }} || true
+            sudo docker rm ${{ env.CURRENT_UPSTREAM }} || true
