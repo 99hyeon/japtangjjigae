@@ -8,6 +8,7 @@ Thumbs.db
 *.iml
 *.ipr
 out/
+application-secret.yml
 
 ### Gradle / Java ###
 HELP.md
