@@ -12,10 +12,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class RedisSeatHoldStore extends AbstractRedisStore implements SeatHoldStore {
 
-    //구간별 인덱스 key
+    //구간별 인덱스 key => 조회 시 모든 좌석 다 검사하지 않기 위함(후보 seatID 목록 빨리 얻기 위한 보조)
     private static final String INDEX_PREFIX = "seat-hold-index:";
 
-    //구간 겹침 위한 key
+    //구간 겹침 체크를 위한 key
     private static final String SEG_PREFIX = "seat-hold-orders:";
 
     /**

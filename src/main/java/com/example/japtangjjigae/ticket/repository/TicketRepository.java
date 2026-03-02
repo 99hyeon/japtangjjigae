@@ -10,31 +10,31 @@ import org.springframework.data.repository.query.Param;
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("""
-        select count(distinct t.seat.id)
-        from Ticket t
+          select count(distinct t.seat.id)
+          from Ticket t
             join t.departureStop ds
             join t.arrivalStop arr
-        where t.trainRun = :trainRun
-          and ds.stopOrder < :requestArrivalOrder
-          and :requestDepartureOrder < arr.stopOrder
-          and t.deletedAt is null
+          where t.trainRun.id = :trainRunId
+            and ds.stopOrder < :requestArrivalOrder
+            and :requestDepartureOrder < arr.stopOrder
+            and t.deletedAt is null
         """)
     int countBookedSeatsInSection(
-        @Param("trainRun") TrainRun trainRun,
+        @Param("trainRunId") Long trainRunId,
         @Param("requestDepartureOrder") int requestDepartureOrder,
         @Param("requestArrivalOrder") int requestArrivalOrder
     );
 
     @Query("""
-    select distinct t.seat.id
-    from Ticket t
-        join t.departureStop ds
-        join t.arrivalStop arr
-    where t.trainRun = :trainRun
-      and ds.stopOrder < :requestArrivalOrder
-      and :requestDepartureOrder < arr.stopOrder
-      and t.deletedAt is null
-""")
+            select distinct t.seat.id
+            from Ticket t
+                join t.departureStop ds
+                join t.arrivalStop arr
+            where t.trainRun = :trainRun
+              and ds.stopOrder < :requestArrivalOrder
+              and :requestDepartureOrder < arr.stopOrder
+              and t.deletedAt is null
+        """)
     List<Long> findBookedSeatIdsInSection(
         @Param("trainRun") TrainRun trainRun,
         @Param("requestDepartureOrder") int requestDepartureOrder,

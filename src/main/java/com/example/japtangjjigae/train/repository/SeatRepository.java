@@ -11,5 +11,6 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     List<Seat> findByCarriageInOrderByCarriage_IdAscRowNumberAscColumnCodeAsc(List<Carriage> carriages);
 
     int countByCarriage_Train(Train train);
+    int countByCarriage_Train_Id(Long trainId);
     List<Seat> findByCarriage_Train(Train train);
 }
