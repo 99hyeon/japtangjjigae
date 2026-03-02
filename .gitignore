@@ -57,5 +57,6 @@ bin/
 scripts/
 src/main/java/com/example/japtangjjigae/global/init/TrainDataInitializerLoadTest.java
 /src/main/java/com/example/japtangjjigae/global/init/SeatHoldPreSeeder.java
+/src/main/java/com/example/japtangjjigae/global/init/TrainDataInitializerLarge.java
 /summary-seats.json
 /summary-trains.json

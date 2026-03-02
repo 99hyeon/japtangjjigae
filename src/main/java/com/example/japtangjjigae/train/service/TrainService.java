@@ -12,6 +12,7 @@ import com.example.japtangjjigae.train.dto.SeatSearchResponseDTO.CarriageSeatDTO
 import com.example.japtangjjigae.train.dto.SeatSearchResponseDTO.SeatDTO;
 import com.example.japtangjjigae.train.dto.SeatSearchResponseDTO.TrainSummary;
 import com.example.japtangjjigae.train.dto.TrainInfoDTO;
+import com.example.japtangjjigae.train.dto.TrainRunSearchRow;
 import com.example.japtangjjigae.train.dto.TrainSearchRequestDTO;
 import com.example.japtangjjigae.train.dto.TrainSearchResponseDTO;
 import com.example.japtangjjigae.train.entity.Carriage;
@@ -53,33 +54,20 @@ public class TrainService {
         String destinationCode = request.getDestinationStationCode();
 
         Pageable pageable = PageRequest.of(page, 10);
-        Page<TrainRun> pageTrainRuns = trainRunRepository.findTrainRuns(
-            originCode,
-            destinationCode,
-            request.getRunDate(),
-            request.getDepartureTime(), pageable);
-        List<TrainRun> trainRuns = pageTrainRuns.getContent();
+        Page<TrainRunSearchRow> pageRows = trainRunRepository.findTrainRunRows(
+            originCode, destinationCode, request.getRunDate(), request.getDepartureTime(), pageable);
 
         List<TrainInfoDTO> trains = new ArrayList<>();
 
-        for (TrainRun trainRun : trainRuns) {
-            TrainStop departureTrainStop = getTrainStop(trainRun, originCode);
-            TrainStop arrivalTrainStop = getTrainStop(trainRun, destinationCode);
-
-            boolean soldOut = isSoldOut(
-                trainRun,
-                departureTrainStop.getStopOrder(),
-                arrivalTrainStop.getStopOrder()
-            );
-
-            int price =
-                arrivalTrainStop.getCumulativeFare() - departureTrainStop.getCumulativeFare();
+        for (TrainRunSearchRow row : pageRows.getContent()) {
+            boolean soldOut = isSoldOut(row.trainRunId(), row.trainId(), row.departureOrder(), row.arrivalOrder());
+            int price = row.arrivalFare() - row.departureFare();
 
             trains.add(new TrainInfoDTO(
-                trainRun.getId(),
-                trainRun.getTrain().getTrainCode(),
-                departureTrainStop.getDepartureAt(),
-                arrivalTrainStop.getArrivalAt(),
+                row.trainRunId(),
+                row.trainCode(),
+                row.departureAt(),
+                row.arrivalAt(),
                 price,
                 soldOut
             ));
@@ -88,12 +76,12 @@ public class TrainService {
         return new TrainSearchResponseDTO(originCode, destinationCode, trains);
     }
 
-    private boolean isSoldOut(TrainRun trainRun, int departureOrder, int arrivalOrder) {
-        int totalSeats = seatRepository.countByCarriage_Train(trainRun.getTrain());
-        int bookedSeats = ticketRepository.countBookedSeatsInSection(trainRun, departureOrder,
+    private boolean isSoldOut(Long trainRunId, Long trainId, int departureOrder, int arrivalOrder) {
+        int totalSeats = seatRepository.countByCarriage_Train_Id(trainId);
+        int bookedSeats = ticketRepository.countBookedSeatsInSection(trainRunId, departureOrder,
             arrivalOrder);
 
-        List<SeatHold> holdSeats = seatHoldStore.findOverLappingHolds(trainRun.getId(),
+        List<SeatHold> holdSeats = seatHoldStore.findOverLappingHolds(trainRunId,
             departureOrder, arrivalOrder);
 
         int holdSeatCount = (int) holdSeats.stream()

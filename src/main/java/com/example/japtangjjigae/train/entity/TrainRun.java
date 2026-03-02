@@ -42,4 +42,8 @@ public class TrainRun {
     public Train getTrain() {
         return train;
     }
+
+    public LocalDate getRunDate(){
+        return runDate;
+    }
 }
